@@ -3,6 +3,7 @@ package nya.tuyw.hugme.command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.datafixers.util.Pair;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
@@ -14,11 +15,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
-import net.neoforged.neoforge.server.ServerLifecycleHooks;
 import nya.tuyw.hugme.HugMe;
 import nya.tuyw.hugme.animation.HugAnimationEnum;
 import nya.tuyw.hugme.network.HugRenderPayload;
@@ -29,7 +25,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-@EventBusSubscriber(modid = HugMe.MODID, bus = EventBusSubscriber.Bus.GAME)
 public class HugCommandHandler {
     private static final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
     private static final long REQUEST_TIMEOUT_S = 60;
@@ -166,7 +161,7 @@ public class HugCommandHandler {
 
         int enumNumber = new Random().nextInt(HugAnimationEnum.values().length);
         for (ServerPlayer serverPlayer : nearbyPlayers) {
-            PacketDistributor.sendToPlayer(serverPlayer, new HugRenderPayload(sender.getStringUUID(), receiver.getStringUUID(), false, enumNumber));
+            ServerPlayNetworking.send(serverPlayer, new HugRenderPayload(sender.getStringUUID(), receiver.getStringUUID(), false, enumNumber));
         }
     }
 
@@ -174,8 +169,9 @@ public class HugCommandHandler {
         List<ServerPlayer> players = new ArrayList<>();
         ServerLevel level = sender.serverLevel();
 
-        if (ServerLifecycleHooks.getCurrentServer() != null) {
-            for (ServerPlayer player : ServerLifecycleHooks.getCurrentServer().getPlayerList().getPlayers()) {
+        MinecraftServer server = HugMe.currentServer;
+        if (server != null) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                 if (player.level().dimension() == level.dimension()) {
                     double distance = player.distanceTo(sender);
                     if (distance < 64) {
@@ -187,28 +183,22 @@ public class HugCommandHandler {
         return players;
     }
 
-    @SubscribeEvent
-    public static void onServerTickEnd(ServerTickEvent.Post event) {
+    public static void onServerTickEnd(MinecraftServer server) {
         for (Map.Entry<Pair<UUID, UUID>, HugStatus> entry : hugStatuses.entrySet()) {
             HugStatus status = entry.getValue();
             if (!status.isActive()){hugStatuses.remove(new Pair<>(status.getSenderId(),status.getReceiverId()));}
             if (status.isActive() && status.getTicksRemaining() > 0) {
-                doLock(status);
+                doLock(status, server);
                 status.decrementTicks();
                 if (status.getTicksRemaining() == 0) {
-                    endHug(status);
+                    endHug(status, server);
                 }
             }
         }
     }
-    private static void doLock(HugStatus status){
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        ServerPlayer sender = null;
-        ServerPlayer receiver = null;
-        if (server != null) {
-            sender = server.getPlayerList().getPlayer(status.getSenderId());
-            receiver = server.getPlayerList().getPlayer(status.getReceiverId());
-        }
+    private static void doLock(HugStatus status, MinecraftServer server){
+        ServerPlayer sender = server.getPlayerList().getPlayer(status.getSenderId());
+        ServerPlayer receiver = server.getPlayerList().getPlayer(status.getReceiverId());
         if (sender != null && receiver != null) {
             sender.teleportTo(status.getSenderPos().x,status.getSenderPos().y,status.getSenderPos().z);
             receiver.teleportTo(status.getReceiverPos().x,status.getReceiverPos().y,status.getReceiverPos().z);
@@ -216,20 +206,15 @@ public class HugCommandHandler {
             hugStatuses.remove(new Pair<>(status.getSenderId(), status.getReceiverId()));
         }
     }
-    private static void endHug(HugStatus status) {
+    private static void endHug(HugStatus status, MinecraftServer server) {
         UUID senderId = status.getSenderId();
         UUID receiverId = status.getReceiverId();
 
-        MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
-        ServerPlayer sender = null;
-        ServerPlayer receiver = null;
-        if (server != null) {
-            sender = server.getPlayerList().getPlayer(senderId);
-            receiver = server.getPlayerList().getPlayer(receiverId);
-        }
+        ServerPlayer sender = server.getPlayerList().getPlayer(senderId);
+        ServerPlayer receiver = server.getPlayerList().getPlayer(receiverId);
         if (sender != null && receiver != null) {
             for (ServerPlayer player : status.getNearbyPlayers()) {
-                PacketDistributor.sendToPlayer(player, new HugRenderPayload(sender.getStringUUID(), receiver.getStringUUID(), true, 0));
+                ServerPlayNetworking.send(player, new HugRenderPayload(sender.getStringUUID(), receiver.getStringUUID(), true, 0));
             }
             hugStatuses.remove(new Pair<>(senderId, receiverId));
         }

@@ -16,30 +16,20 @@ import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 import nya.tuyw.hugme.HugMe;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@EventBusSubscriber(modid = HugMe.MODID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.GAME)
 public class RenderPlayerEventHandler {
     private static final Minecraft client = Minecraft.getInstance();
     private static final Map<UUID, Pair<UUID,Boolean>> playerLockMap = new HashMap<>();
 
-    @SubscribeEvent
-    public static void onRenderPlayer(RenderPlayerEvent.Pre event) {
-        Player player = event.getEntity();
-        PlayerRenderer renderer = event.getRenderer();
-        float partialTicks = event.getPartialTick();
-        PoseStack poseStack = event.getPoseStack();
-        MultiBufferSource buffer = event.getMultiBufferSource();
-        int packedLight = event.getPackedLight();
-
+    public static void onRenderPlayer(Player player, PlayerRenderer renderer, float partialTicks,
+                                      PoseStack poseStack, MultiBufferSource buffer, int packedLight,
+                                      CallbackInfo ci) {
         if (player instanceof AbstractClientPlayer renderPlayer) {
             UUID playerId = player.getUUID();
             if (playerLockMap.containsKey(playerId)) {
@@ -73,7 +63,7 @@ public class RenderPlayerEventHandler {
                 renderPlayerModel(renderer, renderPlayer, poseStack, buffer, packedLight, pair.getRight());
 
                 poseStack.popPose();
-                event.setCanceled(true);
+                ci.cancel();
             }
         }
     }
