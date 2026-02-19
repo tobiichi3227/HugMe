@@ -15,7 +15,6 @@ import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.renderer.entity.player.PlayerRenderer;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.world.entity.player.Player;
 import nya.tuyw.hugme.HugMe;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
@@ -27,44 +26,42 @@ public class RenderPlayerEventHandler {
     private static final Minecraft client = Minecraft.getInstance();
     private static final Map<UUID, Pair<UUID,Boolean>> playerLockMap = new HashMap<>();
 
-    public static void onRenderPlayer(Player player, PlayerRenderer renderer, float partialTicks,
+    public static void onRenderPlayer(AbstractClientPlayer player, PlayerRenderer renderer, float partialTicks,
                                       PoseStack poseStack, MultiBufferSource buffer, int packedLight,
                                       CallbackInfo ci) {
-        if (player instanceof AbstractClientPlayer renderPlayer) {
-            UUID playerId = player.getUUID();
-            if (playerLockMap.containsKey(playerId)) {
-                Pair<UUID, Boolean> pair = playerLockMap.get(playerId);
-                UUID targetPlayerUUID = pair.getLeft();
-                if (targetPlayerUUID == null) return;
-                if (client.level == null) return;
-                AbstractClientPlayer targetPlayer = (AbstractClientPlayer) client.level.getPlayerByUUID(targetPlayerUUID);
-                if (targetPlayer == null) return;
-                float targetYaw = calculateYawToTarget(renderPlayer, targetPlayer);
+        UUID playerId = player.getUUID();
+        if (playerLockMap.containsKey(playerId)) {
+            Pair<UUID, Boolean> pair = playerLockMap.get(playerId);
+            UUID targetPlayerUUID = pair.getLeft();
+            if (targetPlayerUUID == null) return;
+            if (client.level == null) return;
+            AbstractClientPlayer targetPlayer = (AbstractClientPlayer) client.level.getPlayerByUUID(targetPlayerUUID);
+            if (targetPlayer == null) return;
+            float targetYaw = calculateYawToTarget(player, targetPlayer);
 
-                poseStack.pushPose();
+            poseStack.pushPose();
 
-                poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
-                poseStack.translate(0, -1.5, 0);
-                poseStack.mulPose(new org.joml.Quaternionf().rotationY((float) Math.toRadians(targetYaw)));
+            poseStack.mulPose(Axis.XP.rotationDegrees(180.0F));
+            poseStack.translate(0, -1.5, 0);
+            poseStack.mulPose(new org.joml.Quaternionf().rotationY((float) Math.toRadians(targetYaw)));
 
-                var animationPlayer = ((IAnimatedPlayer) renderPlayer).playerAnimator_getAnimation();
-                animationPlayer.setTickDelta(partialTicks);
-                if(animationPlayer.isActive()) {
-                    Vec3f vec3d = animationPlayer.get3DTransform("body", TransformType.POSITION, Vec3f.ZERO);
-                    poseStack.translate(vec3d.getX(), vec3d.getY() + 0.7, vec3d.getZ());
-                    Vec3f vec3f = animationPlayer.get3DTransform("body", TransformType.ROTATION, Vec3f.ZERO);
-                    poseStack.mulPose(Axis.ZP.rotation(vec3f.getZ()));
-                    poseStack.mulPose(Axis.YP.rotation(vec3f.getY()));
-                    poseStack.mulPose(Axis.XP.rotation(vec3f.getX()));
-                    poseStack.translate(0, - 0.7d, 0);
-                }
-
-                poseStack.scale(1.0F, 1.0F, 1.0F);
-                renderPlayerModel(renderer, renderPlayer, poseStack, buffer, packedLight, pair.getRight());
-
-                poseStack.popPose();
-                ci.cancel();
+            var animationPlayer = ((IAnimatedPlayer) player).playerAnimator_getAnimation();
+            animationPlayer.setTickDelta(partialTicks);
+            if (animationPlayer.isActive()) {
+                Vec3f vec3d = animationPlayer.get3DTransform("body", TransformType.POSITION, Vec3f.ZERO);
+                poseStack.translate(vec3d.getX(), vec3d.getY() + 0.7, vec3d.getZ());
+                Vec3f vec3f = animationPlayer.get3DTransform("body", TransformType.ROTATION, Vec3f.ZERO);
+                poseStack.mulPose(Axis.ZP.rotation(vec3f.getZ()));
+                poseStack.mulPose(Axis.YP.rotation(vec3f.getY()));
+                poseStack.mulPose(Axis.XP.rotation(vec3f.getX()));
+                poseStack.translate(0, -0.7d, 0);
             }
+
+            poseStack.scale(1.0F, 1.0F, 1.0F);
+            renderPlayerModel(renderer, player, poseStack, buffer, packedLight, pair.getRight());
+
+            poseStack.popPose();
+            ci.cancel();
         }
     }
 
