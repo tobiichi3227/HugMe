@@ -12,17 +12,10 @@ import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationFactory;
 import dev.kosmx.playerAnim.minecraftApi.PlayerAnimationRegistry;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.resources.ResourceLocation;
-import net.neoforged.api.distmarker.Dist;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
-import nya.tuyw.hugme.HugMe;
 
-@EventBusSubscriber(modid = HugMe.MODID, bus = EventBusSubscriber.Bus.MOD, value = Dist.CLIENT)
 public class AnimationManager {
 
-    @SubscribeEvent
-    public static void onClientSetup(FMLClientSetupEvent event) {
+    public static void setup() {
         PlayerAnimationFactory.ANIMATION_DATA_FACTORY.registerFactory(ResourceLocation.fromNamespaceAndPath("hugme", "animations"), 42, (player) -> {
             if (player instanceof AbstractClientPlayer) {
                 ModifierLayer<IAnimation> hugAnimation = new ModifierLayer<>();
@@ -34,7 +27,7 @@ public class AnimationManager {
     }
 
     @SuppressWarnings("all")
-    public static void playHugAnimation(AbstractClientPlayer sender, AbstractClientPlayer receiver,HugAnimationEnum hugAnimationEnum) {
+    public static void playHugAnimation(AbstractClientPlayer sender, AbstractClientPlayer receiver, HugAnimationEnum hugAnimationEnum) {
         if (sender == null) return;
         ModifierLayer<IAnimation> senderAnimation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData(sender).get(ResourceLocation.fromNamespaceAndPath("hugme", "animations"));
         ModifierLayer<IAnimation> receiverAnimation = (ModifierLayer<IAnimation>) PlayerAnimationAccess.getPlayerAssociatedData(receiver).get(ResourceLocation.fromNamespaceAndPath("hugme", "animations"));
@@ -91,4 +84,3 @@ public class AnimationManager {
         receiverAnimation.setAnimation(receiver_animationPlayer);
     }
 }
-

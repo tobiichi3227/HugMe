@@ -1,9 +1,6 @@
 plugins {
-    id 'java-library'
-    id 'eclipse'
-    id 'idea'
+    id 'fabric-loom' version '1.7-SNAPSHOT'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '1.0.14'
 }
 
 tasks.named('wrapper', Wrapper).configure {
@@ -25,83 +22,33 @@ repositories {
 }
 
 base {
-    archivesName = "HugMe!-NeoForge-$minecraft_version"
+    archivesName = "HugMe!-Fabric-$minecraft_version"
 }
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-neoForge {
-    version = project.neo_version
-
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
-    }
-
-    runs {
-        client {
-            client()
-
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        server {
-            server()
-            programArgument '--nogui'
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        gameTestServer {
-            type = "gameTestServer"
-            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        }
-
-        data {
-            data()
-
-            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
-        }
-
-        configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-
-            logLevel = org.slf4j.event.Level.DEBUG
-        }
-    }
-
-    mods {
-        "${mod_id}" {
-            sourceSet(sourceSets.main)
-        }
-    }
-}
-
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
 dependencies {
-    implementation "dev.kosmx.player-anim:player-animation-lib-forge:2.0.0+1.21.1"
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    modImplementation "dev.kosmx.player-anim:player-animation-lib-fabric:${player_anim_version}"
 }
 
-tasks.withType(ProcessResources).configureEach {
+processResources {
     var replaceProperties = [
-            minecraft_version      : minecraft_version,
-            minecraft_version_range: minecraft_version_range,
-            neo_version            : neo_version,
-            neo_version_range      : neo_version_range,
-            loader_version_range   : loader_version_range,
-            mod_id                 : mod_id,
-            mod_name               : mod_name,
-            mod_license            : mod_license,
-            mod_version            : mod_version,
-            mod_authors            : mod_authors,
-            mod_description        : mod_description
+            minecraft_version: minecraft_version,
+            loader_version   : loader_version,
+            fabric_version   : fabric_version,
+            mod_id           : mod_id,
+            mod_name         : mod_name,
+            mod_license      : mod_license,
+            mod_version      : mod_version,
+            mod_authors      : mod_authors,
+            mod_description  : mod_description
     ]
     inputs.properties replaceProperties
-    filesMatching(['META-INF/neoforge.mods.toml']) {
+    filesMatching(['fabric.mod.json']) {
         expand replaceProperties
     }
 }
@@ -123,9 +70,3 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
-idea {
-    module {
-        downloadSources = true
-        downloadJavadoc = true
-    }
-}

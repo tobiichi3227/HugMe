@@ -1,9 +1,8 @@
 package nya.tuyw.hugme.network;
 
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
 import nya.tuyw.hugme.HugMe;
 import nya.tuyw.hugme.animation.AnimationManager;
 import nya.tuyw.hugme.animation.HugAnimationEnum;
@@ -14,8 +13,8 @@ import java.util.UUID;
 public class HugRenderClientHandler {
     private static final Minecraft client = Minecraft.getInstance();
 
-    public static void handleHugRender(final HugRenderPayload hugRenderPayload, final IPayloadContext context) {
-        context.enqueueWork(() -> {
+    public static void handleHugRender(final HugRenderPayload hugRenderPayload, final ClientPlayNetworking.Context context) {
+        context.client().execute(() -> {
             if (client.level == null) return;
             AbstractClientPlayer sender = (AbstractClientPlayer) client.level.getPlayerByUUID(UUID.fromString(hugRenderPayload.sender()));
             AbstractClientPlayer receiver = (AbstractClientPlayer) client.level.getPlayerByUUID(UUID.fromString(hugRenderPayload.receiver()));
@@ -26,10 +25,6 @@ public class HugRenderClientHandler {
             } else {
                 RenderPlayerEventHandler.unlockPlayers(sender, receiver);
             }
-
-        }).exceptionally(e -> {
-            context.disconnect(Component.translatable("hugme.networking.failed", e.getMessage()));
-            return null;
         });
     }
 
@@ -39,3 +34,4 @@ public class HugRenderClientHandler {
         AnimationManager.playHugAnimation(sender, receiver, randomHugAnimationEnum);
     }
 }
+
